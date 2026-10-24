@@ -1,0 +1,23 @@
+# Template License
+
+This repository is currently a template and does not enforce a specific license yet.
+
+When creating a new project from this template, choose a license that fits your project's goals.
+
+---
+
+## Choosing a License
+
+You can explore open-source licenses and find the right one for your project here:
+
+- [Choose an Open Source License (choosealicense.com)](https://choosealicense.com/)
+- [Open Source Initiative (OSI) Licenses](https://opensource.org/licenses)
+
+### Common Options:
+
+- **MIT License**: Simple and permissive; allows others to do anything with your code as long as they provide attribution and don't hold you liable.
+- **Apache 2.0**: Permissive license that also provides an express grant of patent rights from contributors to users.
+- **GNU GPLv3**: Copyleft license requiring derivative works to remain open source under the same terms.
+- **Unlicense / CC0**: Dedicates your work to the public domain.
+
+Replace the contents of this file with your chosen license text.

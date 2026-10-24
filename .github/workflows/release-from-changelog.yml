@@ -1,0 +1,166 @@
+name: Release and Security Sync
+
+on:
+  push:
+    paths:
+      - 'CHANGELOG.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ACTIONS_FLAGS_RECORD_NODE_DEPRECATION: 'false'
+
+jobs:
+  sync-release-and-security:
+    name: Sync Releases and Security Policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Process Changelog, Update Releases and SECURITY.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "CHANGELOG.md not found. Exiting."
+            exit 0
+          fi
+
+          python3 - << 'EOF'
+          import os
+          import re
+          import subprocess
+          import json
+
+          repo = os.environ.get("REPO")
+          token = os.environ.get("GH_TOKEN")
+
+          with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+              content = f.read()
+
+          pattern = r'^##\s+\[?v?([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\]?(?:\s+-\s+[^\n]+)?'
+          matches = list(re.finditer(pattern, content, flags=re.MULTILINE))
+
+          if not matches:
+              print("No version sections found in CHANGELOG.md.")
+              exit(0)
+
+          # Fetch existing releases from GitHub
+          try:
+              res = subprocess.run(
+                  ["gh", "release", "list", "--repo", repo, "--limit", "100", "--json", "tagName,isPrerelease"],
+                  check=True,
+                  capture_output=True,
+                  text=True
+              )
+              existing_releases = json.loads(res.stdout) if res.stdout else []
+          except Exception as e:
+              print(f"Warning: could not fetch existing releases ({e}).")
+              existing_releases = []
+
+          existing_tags = {r["tagName"]: r for r in existing_releases}
+
+          sections = []
+          stable_majors = []
+
+          for i, match in enumerate(matches):
+              ver = match.group(1)
+              start_pos = match.end()
+              end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+              body = content[start_pos:end_pos].strip()
+              sections.append((ver, body))
+
+              # Check for prerelease
+              is_pre = bool(re.search(r'(alpha|beta|rc|preview|pre|dev)', ver, re.IGNORECASE))
+              if not is_pre:
+                  major_part = int(ver.split(".")[0])
+                  stable_majors.append(major_part)
+
+          # 1. Update/Create GitHub Releases
+          for i, (ver, body) in enumerate(sections):
+              tag = f"v{ver}"
+              is_prerelease = bool(re.search(r'(alpha|beta|rc|preview|pre|dev)', ver, re.IGNORECASE))
+              prev_tag = f"v{sections[i + 1][0]}" if i + 1 < len(sections) else None
+              compare_link = f"\n\n**Full Changelog**: https://github.com/{repo}/compare/{prev_tag}...{tag}" if prev_tag else ""
+
+              release_notes = body + compare_link
+              notes_file = f"/tmp/release_notes_{ver}.txt"
+              with open(notes_file, "w", encoding="utf-8") as nf:
+                  nf.write(release_notes)
+
+              target_tag = tag if tag in existing_tags else (ver if ver in existing_tags else tag)
+
+              if target_tag in existing_tags:
+                  print(f"Updating existing release: {target_tag}")
+                  edit_cmd = [
+                      "gh", "release", "edit", target_tag,
+                      "--repo", repo,
+                      "--title", target_tag,
+                      "--notes-file", notes_file
+                  ]
+                  if is_prerelease:
+                      edit_cmd.append("--prerelease")
+                  subprocess.run(edit_cmd, check=True)
+              else:
+                  print(f"Creating new release: {target_tag}")
+                  create_cmd = [
+                      "gh", "release", "create", target_tag,
+                      "--repo", repo,
+                      "--title", target_tag,
+                      "--notes-file", notes_file
+                  ]
+                  if is_prerelease:
+                      create_cmd.append("--prerelease")
+                  subprocess.run(create_cmd, check=True)
+
+          # Update SECURITY.md to support latest major version
+          if stable_majors and os.path.exists("SECURITY.md"):
+              latest_major = max(stable_majors)
+
+              with open("SECURITY.md", "r", encoding="utf-8") as f:
+                  sec_content = f.read()
+
+              new_table = (
+                  f"| Version | Supported          |\n"
+                  f"| ------- | ------------------ |\n"
+                  f"| {latest_major}.x     | :white_check_mark: |\n"
+                  f"| < {latest_major}.0   | :x:                |"
+              )
+
+              table_regex = r'\| Version \| Supported\s+\|\n\| -+ \| -+ \|\n(?:\| [^\n]+\|\n?)+'
+              if re.search(table_regex, sec_content):
+                  updated_sec = re.sub(table_regex, new_table + "\n", sec_content)
+                  if updated_sec != sec_content:
+                      with open("SECURITY.md", "w", encoding="utf-8") as f:
+                          f.write(updated_sec)
+
+                      subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
+                      subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+                      subprocess.run(["git", "add", "SECURITY.md"], check=True)
+                      diff_res = subprocess.run(["git", "diff", "--staged", "--quiet"])
+                      if diff_res.returncode != 0:
+                          subprocess.run(["git", "commit", "-m", f"docs: update SECURITY.md to support {latest_major}.x [skip ci]"], check=True)
+                          auth_url = f"https://x-access-token:{token}@github.com/{repo}.git"
+                          subprocess.run(["git", "push", auth_url, f"HEAD:{os.environ.get('GITHUB_REF_NAME', 'main')}"], check=True)
+                          print("Pushed updated SECURITY.md to repository.")
+
+                          # Check if documentation_sync is enabled in config.yaml
+                          doc_sync_enabled = False
+                          if os.path.exists("config.yaml"):
+                              with open("config.yaml", "r", encoding="utf-8") as cf:
+                                  cfg_text = cf.read()
+                              match_sync = re.search(r'documentation_sync:\s*(?:#[^\n]*)?\n\s+enabled:\s*(true|false)', cfg_text, re.IGNORECASE)
+                              if match_sync and match_sync.group(1).lower() == 'true':
+                                  doc_sync_enabled = True
+
+                          if doc_sync_enabled:
+                              print("Triggering sync-documentation workflow to propagate updated SECURITY.md across branches...")
+                              subprocess.run(["gh", "workflow", "run", "sync-documentation.yml", "--repo", repo], check=False)
+          EOF

@@ -1,0 +1,35 @@
+code_scanning: # Run CodeQL security checks
+  enabled: true
+  engine: CodeQL
+
+release_management: # Create releases from CHANGELOG.md
+  enabled: true
+  source: CHANGELOG.md
+  auto_prerelease: true
+
+security_policy: # Keep SECURITY.md in sync with latest major version
+  enabled: true
+  source: CHANGELOG.md
+  target: SECURITY.md
+
+wiki_sync: # Sync docs/ to GitHub Wiki (create a Home page under Wiki tab first)
+  enabled: true
+  source_directory: docs/
+
+documentation_sync: # Sync docs, workflows, and metadata across branches
+  enabled: true
+  sync_items:
+    - config.yaml
+    - update.json
+    - CHANGELOG.md
+    - README.md
+    - SECURITY.md
+    - LICENSE*
+    - CONTRIBUTING.md
+    - CODE_OF_CONDUCT.md
+    - banner.png
+    - docs/
+    - .github/workflows/
+    - .github/ISSUE_TEMPLATE/
+    - .github/pull_request_template.md
+    - .github/dependabot.yml

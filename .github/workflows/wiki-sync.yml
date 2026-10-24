@@ -1,0 +1,62 @@
+name: Sync Docs to Wiki
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+env:
+  ACTIONS_FLAGS_RECORD_NODE_DEPRECATION: 'false'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Main Repository
+        uses: actions/checkout@v5
+        with:
+          path: main-repo
+
+      - name: Check Wiki Availability
+        id: check-wiki
+        run: |
+          wiki_url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
+          if git ls-remote "$wiki_url" &>/dev/null; then
+            echo "has_wiki=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_wiki=false" >> "$GITHUB_OUTPUT"
+            echo "Notice: This repository does not have a wiki or the wiki has not been initialized. Skipping sync."
+          fi
+
+      - name: Checkout Wiki Repository
+        if: steps.check-wiki.outputs.has_wiki == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync and Push
+        if: steps.check-wiki.outputs.has_wiki == 'true'
+        run: |
+          rsync -av --delete --exclude '.git' main-repo/docs/ wiki-repo/
+          
+          cd wiki-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add .
+          
+          if git diff-index --quiet HEAD; then
+            echo "No changes to sync."
+          else
+            git commit -m "Auto-sync docs to wiki [skip ci]"
+            git push
+          fi

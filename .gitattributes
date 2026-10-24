@@ -1,0 +1,65 @@
+* text=auto eol=lf
+
+*.c text
+*.cc text
+*.cpp text
+*.cxx text
+*.h text
+*.hpp text
+*.hxx text
+*.cs text
+*.go text
+*.java text
+*.kt text
+*.kts text
+*.js text
+*.jsx text
+*.mjs text
+*.cjs text
+*.ts text
+*.tsx text
+*.mts text
+*.cts text
+*.py text
+*.rb text
+*.swift text
+*.html text
+*.htm text
+*.css text
+*.scss text
+*.sass text
+*.less text
+*.json text
+*.yaml text
+*.yml text
+*.toml text
+*.xml text
+*.md text
+*.txt text
+*.sql text
+*.sh text eol=lf
+*.bash text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg text
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
