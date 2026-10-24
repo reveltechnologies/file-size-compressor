@@ -20,7 +20,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Main Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: main-repo
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Checkout Wiki Repository
         if: steps.check-wiki.outputs.has_wiki == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki-repo
