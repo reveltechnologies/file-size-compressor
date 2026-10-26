@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* Native controls (select, number input, checkbox) follow the OS theme. */
+:root {
+  color-scheme: light dark;
+}
