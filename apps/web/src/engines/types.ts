@@ -5,8 +5,11 @@ export interface CompressJob {
   category: FileCategory
   maxBytes: number
   options: CompressOptions
-  /** Called with 0…1 as work progresses. */
+  /** Called with 0…1 as the current stage progresses. */
   onProgress: (ratio: number) => void
+  /** Short description of the current stage, e.g. "Reading video…". */
+  onStatus: (message: string) => void
+  signal: AbortSignal
 }
 
 export interface CompressResult {

@@ -1,4 +1,6 @@
 export * from './bitrate_calculator'
 export * from './files'
+export * from './media_info'
 export * from './options'
 export * from './presets'
+export * from './video_args'

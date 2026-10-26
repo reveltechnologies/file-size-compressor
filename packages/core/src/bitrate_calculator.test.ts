@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   calculateBitrate,
+  correctForOvershoot,
   estimateBytes,
   pickOutputFps,
   pickOutputSize,
@@ -43,6 +44,21 @@ describe('calculateBitrate', () => {
     expect(() => calculateBitrate({ maxBytes: 10 * MB, durationSec: 60, audioKbps: -1 })).toThrow(
       RangeError,
     )
+  })
+})
+
+describe('correctForOvershoot', () => {
+  it('lowers the video bitrate so a 10% overshoot lands back under the target', () => {
+    const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 60 })
+    const actualVideoKbps = plan.videoKbps * 1.1
+    const actualBytes = ((actualVideoKbps + plan.audioKbps) * 1000 * 60) / 8
+
+    const retry = correctForOvershoot(plan, 60, actualBytes, 10 * MB)
+    const retryBytes = ((retry.videoKbps * 1.1 + retry.audioKbps) * 1000 * 60) / 8
+
+    expect(retry.videoKbps).toBeLessThan(plan.videoKbps)
+    expect(retry.audioKbps).toBe(plan.audioKbps)
+    expect(retryBytes).toBeLessThanOrEqual(10 * MB * SAFETY_FACTOR)
   })
 })
 

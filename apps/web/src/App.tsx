@@ -7,15 +7,15 @@ import {
   type CompressOptions,
   type FileCategory,
 } from '@revel/core'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { DropZone } from './components/DropZone'
 import { OptionToggles } from './components/OptionToggles'
 import { ProgressBar } from './components/ProgressBar'
 import { SavingsReceipt } from './components/SavingsReceipt'
-import { CARD, PRIMARY_BUTTON, WARNING } from './components/styles'
+import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON, WARNING } from './components/styles'
 import { TargetPicker } from './components/TargetPicker'
 import { VideoPlanNote } from './components/VideoPlanNote'
-import { compress, IS_SIMULATED, type CompressResult } from './engines'
+import { compress, SIMULATED_CATEGORIES, type CompressResult } from './engines'
 import { defaultTarget, targetBytes, type Target } from './lib/target'
 import { useVideoInfo } from './lib/useVideoInfo'
 
@@ -35,8 +35,10 @@ function App() {
   const [target, setTarget] = useState<Target>(() => defaultTarget('video'))
   const [options, setOptions] = useState<CompressOptions>(DEFAULT_OPTIONS)
   const [progress, setProgress] = useState<number | null>(null)
+  const [status, setStatus] = useState('')
   const [result, setResult] = useState<CompressResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const videoInfo = useVideoInfo(picked?.category === 'video' ? picked.file : null)
   const maxBytes = picked ? targetBytes(target, picked.category) : null
@@ -68,15 +70,28 @@ function App() {
 
   async function handleShrink() {
     if (!picked || maxBytes === null) return
+    const controller = new AbortController()
+    abortRef.current = controller
     setError(null)
+    setStatus('')
     setProgress(0)
     try {
       setResult(
-        await compress({ ...picked, maxBytes, options, onProgress: setProgress }),
+        await compress({
+          ...picked,
+          maxBytes,
+          options,
+          onProgress: setProgress,
+          onStatus: setStatus,
+          signal: controller.signal,
+        }),
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong while shrinking.')
+      if (!controller.signal.aborted) {
+        setError(err instanceof Error ? err.message : 'Something went wrong while shrinking.')
+      }
     } finally {
+      abortRef.current = null
       setProgress(null)
     }
   }
@@ -98,9 +113,10 @@ function App() {
           </p>
         </header>
 
-        {IS_SIMULATED && (
+        {picked && SIMULATED_CATEGORIES.has(picked.category) && (
           <p className={WARNING}>
-            Preview build: shrinking is simulated and downloaded files won't open yet.
+            Preview build: {CATEGORY_LABEL[picked.category].toLowerCase()} shrinking is simulated
+            and the downloaded file won't open yet.
           </p>
         )}
 
@@ -122,10 +138,17 @@ function App() {
           />
         ) : picked && progress !== null ? (
           <section className={`${CARD} flex flex-col gap-3`}>
-            <ProgressBar ratio={progress} label={`Shrinking ${picked.file.name}…`} />
+            <ProgressBar ratio={progress} label={status || `Shrinking ${picked.file.name}…`} />
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Working on your device. Keep this tab open.
             </p>
+            <button
+              type="button"
+              onClick={() => abortRef.current?.abort()}
+              className={`${SECONDARY_BUTTON} self-center`}
+            >
+              Cancel
+            </button>
           </section>
         ) : picked ? (
           <section className={`${CARD} flex flex-col gap-5`}>
