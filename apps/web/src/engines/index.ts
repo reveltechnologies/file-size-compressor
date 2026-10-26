@@ -10,6 +10,8 @@ export async function compress(job: CompressJob): Promise<CompressResult> {
     case 'image':
       return (await import('./image')).compressImage(job)
     case 'pdf':
-      return (await import('./pdf')).compressPdf(job)
+      return job.files.length > 1
+        ? (await import('./photosToPdf')).photosToPdf(job)
+        : (await import('./pdf')).compressPdf(job)
   }
 }

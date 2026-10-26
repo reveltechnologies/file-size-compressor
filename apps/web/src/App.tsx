@@ -1,9 +1,11 @@
 import {
   calculateBitrate,
+  compareFileNames,
   DEFAULT_AUDIO_KBPS,
   DEFAULT_OPTIONS,
   detectCategory,
   formatBytes,
+  MAX_MERGE_PHOTOS,
   type CompressOptions,
   type FileCategory,
 } from '@revel/core'
@@ -25,13 +27,30 @@ const CATEGORY_LABEL: Record<FileCategory, string> = {
   pdf: 'PDF',
 }
 
-interface PickedFile {
-  file: File
+interface PickedFiles {
+  /** Several files only when combining photos into one PDF. */
+  files: File[]
   category: FileCategory
 }
 
+/** Validates a pick; returns an error message or what to process. */
+function pickFiles(files: File[]): PickedFiles | string {
+  const empty = files.find((file) => file.size === 0)
+  if (empty) return `"${empty.name}" is empty.`
+
+  if (files.length === 1) {
+    const category = detectCategory(files[0].name, files[0].type)
+    return category ? { files, category } : `"${files[0].name}" isn't supported. Try a video, photo or PDF.`
+  }
+
+  if (files.length > MAX_MERGE_PHOTOS) return `Pick up to ${MAX_MERGE_PHOTOS} photos at a time.`
+  const notPhoto = files.find((file) => detectCategory(file.name, file.type) !== 'image')
+  if (notPhoto) return `To combine files into one PDF, pick only photos. "${notPhoto.name}" isn't a photo.`
+  return { files: [...files].sort((a, b) => compareFileNames(a.name, b.name)), category: 'pdf' }
+}
+
 function App() {
-  const [picked, setPicked] = useState<PickedFile | null>(null)
+  const [picked, setPicked] = useState<PickedFiles | null>(null)
   const [target, setTarget] = useState<Target>(() => defaultTarget('video'))
   const [options, setOptions] = useState<CompressOptions>(DEFAULT_OPTIONS)
   const [progress, setProgress] = useState<number | null>(null)
@@ -40,7 +59,9 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const videoInfo = useVideoInfo(picked?.category === 'video' ? picked.file : null)
+  const videoInfo = useVideoInfo(picked?.category === 'video' ? picked.files[0] : null)
+  const isMerge = (picked?.files.length ?? 0) > 1
+  const totalBytes = picked?.files.reduce((sum, file) => sum + file.size, 0) ?? 0
   const maxBytes = picked ? targetBytes(target, picked.category) : null
   const videoPlan =
     videoInfo && maxBytes !== null
@@ -51,21 +72,17 @@ function App() {
         })
       : null
 
-  function handleFile(file: File) {
-    const category = detectCategory(file.name, file.type)
+  function handleFiles(files: File[]) {
+    const pick = pickFiles(files)
     setResult(null)
-    if (!category || file.size === 0) {
+    if (typeof pick === 'string') {
       setPicked(null)
-      setError(
-        file.size === 0
-          ? `"${file.name}" is empty.`
-          : `"${file.name}" isn't supported. Try a video, photo or PDF.`,
-      )
+      setError(pick)
       return
     }
     setError(null)
-    setPicked({ file, category })
-    setTarget(defaultTarget(category))
+    setPicked(pick)
+    setTarget(defaultTarget(pick.category))
   }
 
   async function handleShrink() {
@@ -124,14 +141,14 @@ function App() {
 
         {picked && result && maxBytes !== null ? (
           <SavingsReceipt
-            originalBytes={picked.file.size}
+            originalBytes={totalBytes}
             maxBytes={maxBytes}
             result={result}
             onReset={reset}
           />
         ) : picked && progress !== null ? (
           <section className={`${CARD} flex flex-col gap-3`}>
-            <ProgressBar ratio={progress} label={status || `Shrinking ${picked.file.name}…`} />
+            <ProgressBar ratio={progress} label={status || 'Starting…'} />
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Working on your device. Keep this tab open.
             </p>
@@ -147,9 +164,14 @@ function App() {
           <section className={`${CARD} flex flex-col gap-5`}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-medium">{picked.file.name}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {CATEGORY_LABEL[picked.category]} · {formatBytes(picked.file.size)}
+                <p className="truncate font-medium">
+                  {isMerge ? `${picked.files.length} photos → 1 PDF` : picked.files[0].name}
+                </p>
+                <p className="truncate text-sm text-slate-500 dark:text-slate-400">
+                  {isMerge
+                    ? `In this order: ${picked.files.map((file) => file.name).join(', ')}`
+                    : CATEGORY_LABEL[picked.category]}{' '}
+                  · {formatBytes(totalBytes)}
                 </p>
               </div>
               <button
@@ -157,12 +179,18 @@ function App() {
                 onClick={reset}
                 className="shrink-0 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
               >
-                Change file
+                {isMerge ? 'Change photos' : 'Change file'}
               </button>
             </div>
 
             <TargetPicker category={picked.category} target={target} onChange={setTarget} />
-            <OptionToggles category={picked.category} options={options} onChange={setOptions} />
+            {isMerge ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                GPS location and camera data are always removed when combining photos.
+              </p>
+            ) : (
+              <OptionToggles category={picked.category} options={options} onChange={setOptions} />
+            )}
 
             {videoInfo && videoPlan && maxBytes !== null && (
               <VideoPlanNote
@@ -172,7 +200,7 @@ function App() {
                 smartOptimize={options.smartOptimize}
               />
             )}
-            {maxBytes !== null && picked.file.size <= maxBytes && (
+            {!isMerge && maxBytes !== null && totalBytes <= maxBytes && (
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Already under {formatBytes(maxBytes)}. Shrinking will still strip hidden data.
               </p>
@@ -184,11 +212,13 @@ function App() {
               onClick={() => void handleShrink()}
               className={PRIMARY_BUTTON}
             >
-              {maxBytes === null ? 'Enter a size limit' : `Shrink under ${formatBytes(maxBytes)}`}
+              {maxBytes === null
+                ? 'Enter a size limit'
+                : `${isMerge ? 'Combine' : 'Shrink'} under ${formatBytes(maxBytes)}`}
             </button>
           </section>
         ) : (
-          <DropZone onFile={handleFile} />
+          <DropZone onFiles={handleFiles} />
         )}
       </main>
     </div>

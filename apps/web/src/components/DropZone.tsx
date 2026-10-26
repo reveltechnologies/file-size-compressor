@@ -4,10 +4,10 @@ import { useState } from 'react'
 const ACCEPT = ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(',')
 
 interface DropZoneProps {
-  onFile: (file: File) => void
+  onFiles: (files: File[]) => void
 }
 
-export function DropZone({ onFile }: DropZoneProps) {
+export function DropZone({ onFiles }: DropZoneProps) {
   const [dragging, setDragging] = useState(false)
 
   return (
@@ -20,8 +20,8 @@ export function DropZone({ onFile }: DropZoneProps) {
       onDrop={(event) => {
         event.preventDefault()
         setDragging(false)
-        const file = event.dataTransfer.files[0]
-        if (file) onFile(file)
+        const files = [...event.dataTransfer.files]
+        if (files.length > 0) onFiles(files)
       }}
       className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-14 text-center transition focus-within:ring-2 focus-within:ring-blue-600 ${
         dragging
@@ -32,10 +32,11 @@ export function DropZone({ onFile }: DropZoneProps) {
       <input
         type="file"
         accept={ACCEPT}
+        multiple
         className="sr-only"
         onChange={(event) => {
-          const file = event.target.files?.[0]
-          if (file) onFile(file)
+          const files = [...(event.target.files ?? [])]
+          if (files.length > 0) onFiles(files)
           // Allows picking the same file again after "Shrink another".
           event.target.value = ''
         }}
@@ -55,6 +56,9 @@ export function DropZone({ onFile }: DropZoneProps) {
       <span className="text-lg font-semibold">Drop a video, photo or PDF</span>
       <span className="text-sm text-slate-500 dark:text-slate-400">
         or click to choose · MP4, MOV, WEBM, MKV, GIF, HEIC, WEBP, PNG, JPG, PDF
+      </span>
+      <span className="text-sm text-slate-500 dark:text-slate-400">
+        Pick several photos to combine them into one PDF.
       </span>
     </label>
   )

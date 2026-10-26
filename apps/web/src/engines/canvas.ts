@@ -1,6 +1,25 @@
 export type JpegRenderer = (scale: number, quality: number) => Promise<Blob>
 
 /**
+ * Uses the browser's own decoder first (Safari reads HEIC natively), then
+ * falls back to heic-to, which is only downloaded when actually needed.
+ * EXIF rotation is applied, so the result is upright.
+ */
+export async function decodeImage(file: File, onStatus: (message: string) => void): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file)
+  } catch {
+    onStatus('Opening iPhone photo…')
+    try {
+      const { heicTo } = await import('heic-to')
+      return await heicTo({ blob: file, type: 'bitmap' })
+    } catch {
+      throw new Error(`Couldn't open "${file.name}". It may be damaged or in an unsupported format.`)
+    }
+  }
+}
+
+/**
  * Draws a decoded image onto a canvas and encodes it as JPEG. Canvas output
  * carries no EXIF, GPS, ICC profile or alpha channel: that is the "unseen
  * data" wipe for photos.

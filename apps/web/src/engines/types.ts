@@ -1,7 +1,8 @@
 import type { CompressOptions, FileCategory } from '@revel/core'
 
 export interface CompressJob {
-  file: File
+  /** One file, except when several photos are combined into one PDF. */
+  files: File[]
   category: FileCategory
   maxBytes: number
   options: CompressOptions

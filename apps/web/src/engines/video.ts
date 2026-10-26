@@ -30,7 +30,7 @@ let ffmpegPromise: Promise<FFmpeg> | null = null
 let jobCounter = 0
 
 export async function compressVideo(job: CompressJob): Promise<CompressResult> {
-  const { file, maxBytes, options, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, onProgress, onStatus, signal } = job
 
   onStatus('Downloading video engine (first time only)…')
   const ffmpeg = await loadFFmpeg(onProgress)

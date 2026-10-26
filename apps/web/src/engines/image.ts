@@ -9,11 +9,11 @@ import {
   outputMimeType,
   stripJpegMetadata,
 } from '@revel/core'
-import { createJpegRenderer } from './canvas'
+import { createJpegRenderer, decodeImage } from './canvas'
 import type { CompressJob, CompressResult } from './types'
 
 export async function compressImage(job: CompressJob): Promise<CompressResult> {
-  const { file, maxBytes, options, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, onProgress, onStatus, signal } = job
   const fileName = outputFileName(file.name, 'image')
   const toResult = (bytes: Uint8Array<ArrayBuffer>): CompressResult => ({
     blob: new Blob([bytes], { type: outputMimeType('image') }),
@@ -33,7 +33,7 @@ export async function compressImage(job: CompressJob): Promise<CompressResult> {
   const exif = !options.stripHiddenData && isJpeg(original) ? extractExif(original) : null
   const budget = maxBytes - (exif?.length ?? 0)
 
-  const bitmap = await decode(file, onStatus)
+  const bitmap = await decodeImage(file, onStatus)
   try {
     signal.throwIfAborted()
     onStatus('Shrinking photo…')
@@ -58,23 +58,5 @@ export async function compressImage(job: CompressJob): Promise<CompressResult> {
     return toResult(insertExif(new Uint8Array(await fitted.output.arrayBuffer()), exif))
   } finally {
     bitmap.close()
-  }
-}
-
-/**
- * Uses the browser's own decoder first (Safari reads HEIC natively), then
- * falls back to heic-to, which is only downloaded when actually needed.
- */
-async function decode(file: File, onStatus: (message: string) => void): Promise<ImageBitmap> {
-  try {
-    return await createImageBitmap(file)
-  } catch {
-    onStatus('Opening iPhone photo…')
-    try {
-      const { heicTo } = await import('heic-to')
-      return await heicTo({ blob: file, type: 'bitmap' })
-    } catch {
-      throw new Error("Couldn't open this photo. It may be damaged or in an unsupported format.")
-    }
   }
 }

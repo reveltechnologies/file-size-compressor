@@ -30,7 +30,7 @@ interface PdfImage {
 }
 
 export async function compressPdf(job: CompressJob): Promise<CompressResult> {
-  const { file, maxBytes, options, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, onProgress, onStatus, signal } = job
   const fileName = outputFileName(file.name, 'pdf')
   const toResult = (bytes: Uint8Array): CompressResult => ({
     blob: new Blob([bytes.slice()], { type: outputMimeType('pdf') }),
