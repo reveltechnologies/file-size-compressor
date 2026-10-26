@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@revel/core": "*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

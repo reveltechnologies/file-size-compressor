@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest'
+import {
+  calculateBitrate,
+  estimateBytes,
+  pickOutputFps,
+  pickOutputSize,
+  SAFETY_FACTOR,
+} from './bitrate_calculator'
+import { MB } from './presets'
+
+describe('calculateBitrate', () => {
+  it('fits a 60 s clip into Discord’s 10 MB with audio', () => {
+    const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 60 })
+
+    expect(plan).toEqual({ totalKbps: 1253, videoKbps: 1125, audioKbps: 128, feasible: true })
+  })
+
+  it('gives the whole budget to video when muted', () => {
+    const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 60, audioKbps: 0 })
+
+    expect(plan.videoKbps).toBe(1253)
+  })
+
+  it('never plans past the 94% safety target', () => {
+    for (const durationSec of [1, 7.3, 30, 61.5, 180, 600]) {
+      for (const maxBytes of [10 * MB, 16 * MB, 25 * MB]) {
+        const plan = calculateBitrate({ maxBytes, durationSec })
+        expect(estimateBytes(plan, durationSec)).toBeLessThanOrEqual(maxBytes * SAFETY_FACTOR)
+      }
+    }
+  })
+
+  it('flags videos too long for the target', () => {
+    const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 600 })
+
+    expect(plan.feasible).toBe(false)
+  })
+
+  it('rejects invalid input', () => {
+    expect(() => calculateBitrate({ maxBytes: 10 * MB, durationSec: 0 })).toThrow(RangeError)
+    expect(() => calculateBitrate({ maxBytes: 10 * MB, durationSec: NaN })).toThrow(RangeError)
+    expect(() => calculateBitrate({ maxBytes: 0, durationSec: 60 })).toThrow(RangeError)
+    expect(() => calculateBitrate({ maxBytes: 10 * MB, durationSec: 60, audioKbps: -1 })).toThrow(
+      RangeError,
+    )
+  })
+})
+
+describe('pickOutputSize', () => {
+  it('keeps 1080p at 2500 kbps and above', () => {
+    expect(pickOutputSize(2500, { width: 1920, height: 1080 })).toEqual({ width: 1920, height: 1080 })
+  })
+
+  it('drops to 720p below 2500 kbps', () => {
+    expect(pickOutputSize(1500, { width: 1920, height: 1080 })).toEqual({ width: 1280, height: 720 })
+  })
+
+  it('drops to 480p below 1000 kbps, measuring the short side of portrait video', () => {
+    expect(pickOutputSize(500, { width: 1080, height: 1920 })).toEqual({ width: 480, height: 852 })
+  })
+
+  it('never upscales', () => {
+    expect(pickOutputSize(5000, { width: 640, height: 360 })).toEqual({ width: 640, height: 360 })
+  })
+
+  it('rounds odd dimensions down to even', () => {
+    expect(pickOutputSize(5000, { width: 641, height: 361 })).toEqual({ width: 640, height: 360 })
+  })
+})
+
+describe('pickOutputFps', () => {
+  it('caps 60 FPS at 30 and leaves 24 FPS alone', () => {
+    expect(pickOutputFps(60)).toBe(30)
+    expect(pickOutputFps(24)).toBe(24)
+  })
+})
