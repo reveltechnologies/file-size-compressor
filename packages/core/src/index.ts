@@ -1,5 +1,7 @@
 export * from './bitrate_calculator'
 export * from './files'
+export * from './image_fit'
+export * from './jpeg_metadata'
 export * from './media_info'
 export * from './options'
 export * from './presets'

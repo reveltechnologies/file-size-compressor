@@ -12,10 +12,10 @@ import { DropZone } from './components/DropZone'
 import { OptionToggles } from './components/OptionToggles'
 import { ProgressBar } from './components/ProgressBar'
 import { SavingsReceipt } from './components/SavingsReceipt'
-import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON, WARNING } from './components/styles'
+import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON } from './components/styles'
 import { TargetPicker } from './components/TargetPicker'
 import { VideoPlanNote } from './components/VideoPlanNote'
-import { compress, SIMULATED_CATEGORIES, type CompressResult } from './engines'
+import { compress, type CompressResult } from './engines'
 import { defaultTarget, targetBytes, type Target } from './lib/target'
 import { useVideoInfo } from './lib/useVideoInfo'
 
@@ -112,13 +112,6 @@ function App() {
             uploaded.
           </p>
         </header>
-
-        {picked && SIMULATED_CATEGORIES.has(picked.category) && (
-          <p className={WARNING}>
-            Preview build: {CATEGORY_LABEL[picked.category].toLowerCase()} shrinking is simulated
-            and the downloaded file won't open yet.
-          </p>
-        )}
 
         {error && (
           <p

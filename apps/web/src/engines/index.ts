@@ -1,13 +1,15 @@
-import { compressSimulated } from './simulated'
 import type { CompressJob, CompressResult } from './types'
-import { compressVideo } from './video'
 
 export type { CompressJob, CompressResult } from './types'
 
-/** Categories still on the stand-in engine (photos: step 5, PDFs: step 6). */
-export const SIMULATED_CATEGORIES: ReadonlySet<CompressJob['category']> = new Set(['image', 'pdf'])
-
-export function compress(job: CompressJob): Promise<CompressResult> {
-  if (job.category === 'video') return compressVideo(job)
-  return compressSimulated(job)
+/** Each engine is downloaded only the first time someone needs it. */
+export async function compress(job: CompressJob): Promise<CompressResult> {
+  switch (job.category) {
+    case 'video':
+      return (await import('./video')).compressVideo(job)
+    case 'image':
+      return (await import('./image')).compressImage(job)
+    case 'pdf':
+      return (await import('./pdf')).compressPdf(job)
+  }
 }

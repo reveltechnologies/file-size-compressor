@@ -2,7 +2,7 @@ import type { CompressOptions, FileCategory } from '@revel/core'
 
 const STRIP_DETAILS: Record<FileCategory, string> = {
   video: 'GPS location, camera info, gyro/sensor tracks, thumbnails',
-  image: 'EXIF, GPS location, camera serial, color profiles',
+  image: 'EXIF, GPS location, camera model and serial',
   pdf: 'Author, software tags, edit history',
 }
 
