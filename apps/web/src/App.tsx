@@ -162,25 +162,37 @@ function App() {
           </section>
         ) : picked ? (
           <section className={`${CARD} flex flex-col gap-5`}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {isMerge ? `${picked.files.length} photos → 1 PDF` : picked.files[0].name}
-                </p>
-                <p className="truncate text-sm text-slate-500 dark:text-slate-400">
-                  {isMerge
-                    ? `In this order: ${picked.files.map((file) => file.name).join(', ')}`
-                    : CATEGORY_LABEL[picked.category]}{' '}
-                  · {formatBytes(totalBytes)}
-                </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {isMerge ? `${picked.files.length} photos → 1 PDF` : picked.files[0].name}
+                  </p>
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">
+                    {isMerge ? 'Photos' : CATEGORY_LABEL[picked.category]} · {formatBytes(totalBytes)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="shrink-0 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {isMerge ? 'Change photos' : 'Change file'}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={reset}
-                className="shrink-0 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-              >
-                {isMerge ? 'Change photos' : 'Change file'}
-              </button>
+              {isMerge && (
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  <p>Pages in this order (rename files to change it):</p>
+                  {/* The height cuts a row in half, so a long list visibly scrolls on phones. */}
+                  <ol className="mt-1 max-h-40 list-inside list-decimal overflow-y-auto rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
+                    {picked.files.map((file, i) => (
+                      <li key={i} className="truncate">
+                        {file.name}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
 
             <TargetPicker category={picked.category} target={target} onChange={setTarget} />
