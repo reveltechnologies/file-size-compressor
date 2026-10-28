@@ -1,6 +1,6 @@
 import type { CompressJob, CompressResult } from './types'
 
-export type { CompressJob, CompressResult } from './types'
+export type { CompressJob, CompressResult, ProgressStep } from './types'
 export { BlurryVideoError } from './types'
 
 /** Each engine is downloaded only the first time someone needs it. */

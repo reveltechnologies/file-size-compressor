@@ -30,9 +30,9 @@ let ffmpegPromise: Promise<FFmpeg> | null = null
 let jobCounter = 0
 
 export async function compressVideo(job: CompressJob): Promise<CompressResult> {
-  const { files: [file], maxBytes, options, allowBlurry, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, allowBlurry, onStep, onProgress, onStatus, signal } = job
 
-  onStatus('Downloading video engine (first time only)…')
+  onStatus('Getting the video tool ready (first time only)…')
   const ffmpeg = await loadFFmpeg(onProgress)
   signal.throwIfAborted()
   // ffmpeg.wasm can't stop mid-encode; killing its worker is the only way.
@@ -52,7 +52,7 @@ export async function compressVideo(job: CompressJob): Promise<CompressResult> {
     await ffmpeg.createDir(dir)
     await ffmpeg.mount(FFFSType.WORKERFS, { files: [file] }, dir)
 
-    onStatus('Reading video…')
+    onStatus('Looking at your video…')
     onProgress(0)
     // `ffmpeg -i` with no output exits with an error; only its log matters.
     const probe = await run(ffmpeg, ['-hide_banner', '-i', input])
@@ -74,8 +74,10 @@ export async function compressVideo(job: CompressJob): Promise<CompressResult> {
       throw new BlurryVideoError(`This video will look very blurry under ${formatBytes(maxBytes)}. ${tip}`)
     }
 
+    onStep('shrink')
     for (let attempt = 1; ; attempt++) {
-      onStatus(attempt === 1 ? 'Shrinking video…' : `Came out slightly too big, retrying (${attempt}/${MAX_ATTEMPTS})…`)
+      // A retry isn't a problem for the user, so it shouldn't sound like one.
+      onStatus(attempt === 1 ? 'Squeezing it under the limit…' : 'Fine-tuning the size…')
       onProgress(0)
       const args = buildVideoArgs({ inputPath: input, outputPath: output, videoKbps: plan.videoKbps, audioKbps, options })
       const { exitCode, log } = await run(ffmpeg, args, (line) => {

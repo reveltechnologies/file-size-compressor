@@ -1,5 +1,8 @@
 import type { CompressOptions, FileCategory } from '@revel/core'
 
+/** The steps shown to the user while a file is being shrunk. */
+export type ProgressStep = 'prepare' | 'shrink' | 'done'
+
 export interface CompressJob {
   /** One file, except when several photos are combined into one PDF. */
   files: File[]
@@ -8,9 +11,11 @@ export interface CompressJob {
   options: CompressOptions
   /** Video only: the user accepted a blurry result for a video too long for the target. */
   allowBlurry?: boolean
-  /** Called with 0…1 as the current stage progresses. */
+  /** Called once the real shrinking starts; everything before it counts as preparing. */
+  onStep: (step: ProgressStep) => void
+  /** Called with 0…1 as the current stage progresses. A new pass may start again at 0. */
   onProgress: (ratio: number) => void
-  /** Short description of the current stage, e.g. "Reading video…". */
+  /** Short, friendly description of the current stage, e.g. "Looking at your video…". */
   onStatus: (message: string) => void
   signal: AbortSignal
 }

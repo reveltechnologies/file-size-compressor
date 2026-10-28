@@ -30,14 +30,14 @@ interface PdfImage {
 }
 
 export async function compressPdf(job: CompressJob): Promise<CompressResult> {
-  const { files: [file], maxBytes, options, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, onStep, onProgress, onStatus, signal } = job
   const fileName = outputFileName(file.name, 'pdf')
   const toResult = (bytes: Uint8Array): CompressResult => ({
     blob: new Blob([bytes.slice()], { type: outputMimeType('pdf') }),
     fileName,
   })
 
-  onStatus('Opening PDF…')
+  onStatus('Opening your PDF…')
   const original = new Uint8Array(await file.arrayBuffer())
   if (original.length <= maxBytes && !options.stripHiddenData) return toResult(original)
 
@@ -49,7 +49,8 @@ export async function compressPdf(job: CompressJob): Promise<CompressResult> {
     throw new Error("Couldn't open this PDF. It may be damaged or password-protected.")
   }
 
-  onStatus('Cleaning up PDF…')
+  onStep('shrink')
+  onStatus('Tidying up your PDF…')
   if (options.stripHiddenData) stripMetadata(doc)
   // Drops earlier revisions ("edit history") and anything else no page uses.
   removeUnreachableObjects(doc)
@@ -60,7 +61,7 @@ export async function compressPdf(job: CompressJob): Promise<CompressResult> {
   for (const [i, step] of PDF_IMAGE_STEPS.entries()) {
     if (bytes.length <= maxBytes || images.length === 0) break
     signal.throwIfAborted()
-    onStatus(`Recompressing ${images.length} image${images.length === 1 ? '' : 's'} (pass ${i + 1})…`)
+    onStatus(i === 0 ? 'Shrinking the pages…' : 'Fine-tuning the size…')
     onProgress(i / totalSteps)
     await recompressImages(doc, images, step, signal)
     bytes = await doc.save({ useObjectStreams: true })

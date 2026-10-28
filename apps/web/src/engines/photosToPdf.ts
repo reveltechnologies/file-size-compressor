@@ -14,7 +14,7 @@ import type { CompressJob, CompressResult } from './types'
  * on a canvas, so their GPS and camera data never reach the PDF.
  */
 export async function photosToPdf(job: CompressJob): Promise<CompressResult> {
-  const { files, maxBytes, onProgress, onStatus, signal } = job
+  const { files, maxBytes, onStep, onProgress, onStatus, signal } = job
   const pages: ImageBitmap[] = []
 
   try {
@@ -26,9 +26,10 @@ export async function photosToPdf(job: CompressJob): Promise<CompressResult> {
       pages.push(await downscale(await decodeImage(file, onStatus), PDF_IMAGE_STEPS[0].maxLongSide))
     }
 
+    onStep('shrink')
     let bytes: Uint8Array = new Uint8Array()
     for (const [i, step] of PDF_IMAGE_STEPS.entries()) {
-      onStatus(i === 0 ? 'Building PDF…' : `Making it smaller (pass ${i + 1})…`)
+      onStatus(i === 0 ? 'Building your PDF…' : 'Fine-tuning the size…')
       onProgress(i / PDF_IMAGE_STEPS.length)
       bytes = await buildPdf(pages, step, signal)
       if (bytes.length <= maxBytes) break

@@ -9,7 +9,7 @@ export async function decodeImage(file: File, onStatus: (message: string) => voi
   try {
     return await createImageBitmap(file)
   } catch {
-    onStatus('Opening iPhone photo…')
+    onStatus('Opening your iPhone photo…')
     try {
       const { heicTo } = await import('heic-to')
       return await heicTo({ blob: file, type: 'bitmap' })

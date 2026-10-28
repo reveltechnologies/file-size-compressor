@@ -12,12 +12,12 @@ import {
 import { useRef, useState } from 'react'
 import { DropZone } from './components/DropZone'
 import { OptionToggles } from './components/OptionToggles'
-import { ProgressBar } from './components/ProgressBar'
+import { ProgressPanel } from './components/ProgressPanel'
 import { SavingsReceipt } from './components/SavingsReceipt'
 import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON } from './components/styles'
 import { TargetPicker } from './components/TargetPicker'
 import { VideoPlanNote } from './components/VideoPlanNote'
-import { BlurryVideoError, compress, type CompressResult } from './engines'
+import { BlurryVideoError, compress, type CompressResult, type ProgressStep } from './engines'
 import { defaultTarget, targetBytes, type Target } from './lib/target'
 import { useVideoInfo } from './lib/useVideoInfo'
 
@@ -26,6 +26,15 @@ const CATEGORY_LABEL: Record<FileCategory, string> = {
   image: 'Photo',
   pdf: 'PDF',
 }
+
+const WORKING_TITLE: Record<FileCategory, string> = {
+  video: 'Shrinking your video…',
+  image: 'Shrinking your photo…',
+  pdf: 'Shrinking your PDF…',
+}
+
+/** Long enough to see the bar fill and "Done" tick before the receipt appears. */
+const DONE_PAUSE_MS = 700
 
 interface PickedFiles {
   /** Several files only when combining photos into one PDF. */
@@ -54,6 +63,7 @@ function App() {
   const [target, setTarget] = useState<Target>(() => defaultTarget('video'))
   const [options, setOptions] = useState<CompressOptions>(DEFAULT_OPTIONS)
   const [progress, setProgress] = useState<number | null>(null)
+  const [step, setStep] = useState<ProgressStep>('prepare')
   const [status, setStatus] = useState('')
   const [result, setResult] = useState<CompressResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -100,19 +110,22 @@ function App() {
     setError(null)
     setOfferBlurry(false)
     setStatus('')
+    setStep('prepare')
     setProgress(0)
     try {
-      setResult(
-        await compress({
-          ...picked,
-          maxBytes,
-          options,
-          allowBlurry: allowBlurry || forceBlurry,
-          onProgress: setProgress,
-          onStatus: setStatus,
-          signal: controller.signal,
-        }),
-      )
+      const done = await compress({
+        ...picked,
+        maxBytes,
+        options,
+        allowBlurry: allowBlurry || forceBlurry,
+        onStep: setStep,
+        onProgress: setProgress,
+        onStatus: setStatus,
+        signal: controller.signal,
+      })
+      setStep('done')
+      await new Promise((resolve) => setTimeout(resolve, DONE_PAUSE_MS))
+      setResult(done)
     } catch (err) {
       if (!controller.signal.aborted) {
         setError(err instanceof Error ? err.message : 'Something went wrong while shrinking.')
@@ -167,19 +180,13 @@ function App() {
             onReset={reset}
           />
         ) : picked && progress !== null ? (
-          <section className={`${CARD} flex flex-col gap-3`}>
-            <ProgressBar ratio={progress} label={status || 'Starting…'} />
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Working on your device. Keep this tab open.
-            </p>
-            <button
-              type="button"
-              onClick={() => abortRef.current?.abort()}
-              className={`${SECONDARY_BUTTON} self-center`}
-            >
-              Cancel
-            </button>
-          </section>
+          <ProgressPanel
+            title={isMerge ? 'Making your PDF…' : WORKING_TITLE[picked.category]}
+            step={step}
+            ratio={progress}
+            status={status}
+            onCancel={() => abortRef.current?.abort()}
+          />
         ) : picked ? (
           <section className={`${CARD} flex flex-col gap-5`}>
             <div className="flex flex-col gap-2">
