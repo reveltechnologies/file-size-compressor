@@ -14,7 +14,10 @@ export interface MediaInfo {
  */
 export function parseFfmpegInfo(log: string): MediaInfo | null {
   const duration = /Duration: (\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(log)
-  const videoLine = /Stream #\d+:\d+.*?: Video: .*/.exec(log)?.[0]
+  // Checked line by line with an anchored regex: an unanchored `Stream #.*?: Video:`
+  // over the whole log is quadratic on crafted input (e.g. in a metadata title).
+  const streams = log.split('\n').filter((line) => /^\s*Stream #\d+:\d+/.test(line))
+  const videoLine = streams.find((line) => line.includes(': Video: '))
   const size = videoLine && /, (\d+)x(\d+)/.exec(videoLine)
   if (!size) return null
 
@@ -33,7 +36,7 @@ export function parseFfmpegInfo(log: string): MediaInfo | null {
     width,
     height,
     fps: fps ? Number(fps[1]) : null,
-    hasAudio: /Stream #\d+:\d+.*?: Audio: /.test(log),
+    hasAudio: streams.some((line) => line.includes(': Audio: ')),
   }
 }
 
