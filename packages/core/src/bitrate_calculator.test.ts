@@ -13,7 +13,7 @@ describe('calculateBitrate', () => {
   it('fits a 60 s clip into Discord’s 10 MB with audio', () => {
     const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 60 })
 
-    expect(plan).toEqual({ totalKbps: 1253, videoKbps: 1125, audioKbps: 128, feasible: true })
+    expect(plan).toEqual({ totalKbps: 1253, videoKbps: 1125, audioKbps: 128, feasible: true, possible: true })
   })
 
   it('gives the whole budget to video when muted', () => {
@@ -31,10 +31,18 @@ describe('calculateBitrate', () => {
     }
   })
 
-  it('flags videos too long for the target', () => {
-    const plan = calculateBitrate({ maxBytes: 10 * MB, durationSec: 600 })
-
-    expect(plan.feasible).toBe(false)
+  it('flags videos too long to look good, but still possible blurry', () => {
+    // 10 min into 10 MB: 125 kbps total, nothing left for video with audio on.
+    expect(calculateBitrate({ maxBytes: 10 * MB, durationSec: 600 })).toMatchObject({
+      feasible: false,
+      possible: false,
+    })
+    // Muted, all 125 kbps go to video: blurry but doable.
+    expect(calculateBitrate({ maxBytes: 10 * MB, durationSec: 600, audioKbps: 0 })).toMatchObject({
+      videoKbps: 125,
+      feasible: false,
+      possible: true,
+    })
   })
 
   it('rejects invalid input', () => {
@@ -73,6 +81,10 @@ describe('pickOutputSize', () => {
 
   it('drops to 480p below 1000 kbps, measuring the short side of portrait video', () => {
     expect(pickOutputSize(500, { width: 1080, height: 1920 })).toEqual({ width: 480, height: 852 })
+  })
+
+  it('drops to 240p for blurry videos', () => {
+    expect(pickOutputSize(100, { width: 1920, height: 1080 })).toEqual({ width: 426, height: 240 })
   })
 
   it('never upscales', () => {

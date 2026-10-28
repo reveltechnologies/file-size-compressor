@@ -9,8 +9,10 @@
 /** Share of the target spent on audio + video; the other 6% absorbs container overhead. */
 export const SAFETY_FACTOR = 0.94
 export const DEFAULT_AUDIO_KBPS = 128
-/** Below this the picture turns to mush, so we refuse instead of producing it. */
+/** Below this the picture turns to mush, so we warn and only go ahead if the user accepts. */
 export const MIN_VIDEO_KBPS = 150
+/** Below this even a 240p video can't hit the target, so we refuse. */
+export const MIN_BLURRY_VIDEO_KBPS = 40
 export const MAX_SMART_FPS = 30
 
 export interface BitrateInput {
@@ -26,6 +28,8 @@ export interface BitratePlan {
   audioKbps: number
   /** False when the video is too long to look acceptable at this size. */
   feasible: boolean
+  /** False when it can't fit at all, even blurry. */
+  possible: boolean
 }
 
 /** Video Bitrate = (Target × 0.94 / Duration) − Audio. */
@@ -41,7 +45,7 @@ export function calculateBitrate({
   const totalKbps = Math.floor((maxBytes * 8 * SAFETY_FACTOR) / 1000 / durationSec)
   const videoKbps = totalKbps - audioKbps
 
-  return { totalKbps, videoKbps, audioKbps, feasible: videoKbps >= MIN_VIDEO_KBPS }
+  return { totalKbps, videoKbps, audioKbps, ...quality(videoKbps) }
 }
 
 /**
@@ -65,8 +69,12 @@ export function correctForOvershoot(
     totalKbps: videoKbps + plan.audioKbps,
     videoKbps,
     audioKbps: plan.audioKbps,
-    feasible: videoKbps >= MIN_VIDEO_KBPS,
+    ...quality(videoKbps),
   }
+}
+
+function quality(videoKbps: number): Pick<BitratePlan, 'feasible' | 'possible'> {
+  return { feasible: videoKbps >= MIN_VIDEO_KBPS, possible: videoKbps >= MIN_BLURRY_VIDEO_KBPS }
 }
 
 export interface Dimensions {
@@ -75,12 +83,12 @@ export interface Dimensions {
 }
 
 /**
- * Smart Visual Optimization: drop to 720p below 2500 kbps and 480p below
- * 1000 kbps. "720p" means the short side, so portrait phone videos
- * (1080×1920) scale correctly.
+ * Smart Visual Optimization: drop to 720p below 2500 kbps, 480p below
+ * 1000 kbps and 240p for blurry videos below MIN_VIDEO_KBPS. "720p" means
+ * the short side, so portrait phone videos (1080×1920) scale correctly.
  */
 export function shortSideCap(videoKbps: number): number {
-  return videoKbps >= 2500 ? 1080 : videoKbps >= 1000 ? 720 : 480
+  return videoKbps >= 2500 ? 1080 : videoKbps >= 1000 ? 720 : videoKbps >= MIN_VIDEO_KBPS ? 480 : 240
 }
 
 /** Never upscales; always returns even dimensions because H.264 with yuv420p requires them. */

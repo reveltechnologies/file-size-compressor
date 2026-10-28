@@ -11,7 +11,7 @@ import {
   parseFfmpegInfo,
   parseFfmpegTime,
 } from '@revel/core'
-import type { CompressJob, CompressResult } from './types'
+import { BlurryVideoError, type CompressJob, type CompressResult } from './types'
 
 /**
  * Loaded from a CDN because the ~32 MB .wasm is over Cloudflare Pages'
@@ -30,7 +30,7 @@ let ffmpegPromise: Promise<FFmpeg> | null = null
 let jobCounter = 0
 
 export async function compressVideo(job: CompressJob): Promise<CompressResult> {
-  const { files: [file], maxBytes, options, onProgress, onStatus, signal } = job
+  const { files: [file], maxBytes, options, allowBlurry, onProgress, onStatus, signal } = job
 
   onStatus('Downloading video engine (first time only)…')
   const ffmpeg = await loadFFmpeg(onProgress)
@@ -66,15 +66,15 @@ export async function compressVideo(job: CompressJob): Promise<CompressResult> {
 
     const audioKbps = options.muteAudio || !info.hasAudio ? 0 : DEFAULT_AUDIO_KBPS
     let plan = calculateBitrate({ maxBytes, durationSec, audioKbps })
+    const tip = audioKbps > 0 ? 'Try Mute audio or a bigger target.' : 'Try a bigger target.'
+    if (!plan.possible) {
+      throw new Error(`This video is too long to fit under ${formatBytes(maxBytes)}, even blurry. ${tip}`)
+    }
+    if (!plan.feasible && !allowBlurry) {
+      throw new BlurryVideoError(`This video will look very blurry under ${formatBytes(maxBytes)}. ${tip}`)
+    }
 
     for (let attempt = 1; ; attempt++) {
-      if (!plan.feasible) {
-        throw new Error(
-          `This video is too long to look good under ${formatBytes(maxBytes)}. ` +
-            (audioKbps > 0 ? 'Try Mute audio or a bigger target.' : 'Try a bigger target.'),
-        )
-      }
-
       onStatus(attempt === 1 ? 'Shrinking video…' : `Came out slightly too big, retrying (${attempt}/${MAX_ATTEMPTS})…`)
       onProgress(0)
       const args = buildVideoArgs({ inputPath: input, outputPath: output, videoKbps: plan.videoKbps, audioKbps, options })
@@ -90,13 +90,16 @@ export async function compressVideo(job: CompressJob): Promise<CompressResult> {
       const data = await ffmpeg.readFile(output)
       if (typeof data === 'string') throw new Error('Unexpected text output from the video engine.')
 
-      if (data.byteLength <= maxBytes || attempt === MAX_ATTEMPTS) {
+      // A retry may dip a little under the blur warning; that's fine. If it can't
+      // work at all, keep this attempt and let the receipt say it's over.
+      const retry = attempt < MAX_ATTEMPTS ? correctForOvershoot(plan, durationSec, data.byteLength, maxBytes) : null
+      if (data.byteLength <= maxBytes || !retry?.possible) {
         return {
           blob: new Blob([data.slice()], { type: outputMimeType('video') }),
           fileName: outputFileName(file.name, 'video'),
         }
       }
-      plan = correctForOvershoot(plan, durationSec, data.byteLength, maxBytes)
+      plan = retry
     }
   } finally {
     signal.removeEventListener('abort', cancel)

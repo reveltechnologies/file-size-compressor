@@ -17,7 +17,7 @@ import { SavingsReceipt } from './components/SavingsReceipt'
 import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON } from './components/styles'
 import { TargetPicker } from './components/TargetPicker'
 import { VideoPlanNote } from './components/VideoPlanNote'
-import { compress, type CompressResult } from './engines'
+import { BlurryVideoError, compress, type CompressResult } from './engines'
 import { defaultTarget, targetBytes, type Target } from './lib/target'
 import { useVideoInfo } from './lib/useVideoInfo'
 
@@ -57,6 +57,9 @@ function App() {
   const [status, setStatus] = useState('')
   const [result, setResult] = useState<CompressResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [allowBlurry, setAllowBlurry] = useState(false)
+  /** The engine found the video would be blurry, which the browser couldn't tell in advance. */
+  const [offerBlurry, setOfferBlurry] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   const videoInfo = useVideoInfo(picked?.category === 'video' ? picked.files[0] : null)
@@ -71,10 +74,15 @@ function App() {
           audioKbps: options.muteAudio ? 0 : DEFAULT_AUDIO_KBPS,
         })
       : null
+  const canShrink =
+    maxBytes !== null &&
+    (!videoPlan || (videoPlan.possible && (videoPlan.feasible || allowBlurry)))
 
   function handleFiles(files: File[]) {
     const pick = pickFiles(files)
     setResult(null)
+    setAllowBlurry(false)
+    setOfferBlurry(false)
     if (typeof pick === 'string') {
       setPicked(null)
       setError(pick)
@@ -85,11 +93,12 @@ function App() {
     setTarget(defaultTarget(pick.category))
   }
 
-  async function handleShrink() {
+  async function handleShrink(forceBlurry = false) {
     if (!picked || maxBytes === null) return
     const controller = new AbortController()
     abortRef.current = controller
     setError(null)
+    setOfferBlurry(false)
     setStatus('')
     setProgress(0)
     try {
@@ -98,6 +107,7 @@ function App() {
           ...picked,
           maxBytes,
           options,
+          allowBlurry: allowBlurry || forceBlurry,
           onProgress: setProgress,
           onStatus: setStatus,
           signal: controller.signal,
@@ -106,6 +116,7 @@ function App() {
     } catch (err) {
       if (!controller.signal.aborted) {
         setError(err instanceof Error ? err.message : 'Something went wrong while shrinking.')
+        setOfferBlurry(err instanceof BlurryVideoError)
       }
     } finally {
       abortRef.current = null
@@ -131,12 +142,21 @@ function App() {
         </header>
 
         {error && (
-          <p
+          <div
             role="alert"
-            className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+            className="flex flex-col gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
           >
-            {error}
-          </p>
+            <p>{error}</p>
+            {offerBlurry && picked && progress === null && (
+              <button
+                type="button"
+                onClick={() => void handleShrink(true)}
+                className={`${SECONDARY_BUTTON} self-start`}
+              >
+                Shrink anyway (blurry)
+              </button>
+            )}
+          </div>
         )}
 
         {picked && result && maxBytes !== null ? (
@@ -210,6 +230,8 @@ function App() {
                 plan={videoPlan}
                 maxBytes={maxBytes}
                 smartOptimize={options.smartOptimize}
+                allowBlurry={allowBlurry}
+                onAllowBlurryChange={setAllowBlurry}
               />
             )}
             {!isMerge && maxBytes !== null && totalBytes <= maxBytes && (
@@ -220,7 +242,7 @@ function App() {
 
             <button
               type="button"
-              disabled={maxBytes === null || videoPlan?.feasible === false}
+              disabled={!canShrink}
               onClick={() => void handleShrink()}
               className={PRIMARY_BUTTON}
             >
