@@ -65,6 +65,13 @@ describe('parseFfmpegInfo', () => {
       hasAudio: true,
     })
   })
+
+  it('stays fast on a crafted log line', () => {
+    const crafted = `    title           : ${'Stream #0:0'.repeat(200_000)}\n${SILENT_GIF}`
+    const start = Date.now()
+    expect(parseFfmpegInfo(crafted)).toMatchObject({ width: 480, hasAudio: false })
+    expect(Date.now() - start).toBeLessThan(500)
+  })
 })
 
 describe('parseFfmpegTime', () => {
