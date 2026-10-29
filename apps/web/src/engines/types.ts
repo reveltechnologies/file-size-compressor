@@ -1,4 +1,4 @@
-import type { CompressOptions, FileCategory } from '@revel/core'
+import type { CompressOptions, FileCategory, ImageFormat } from '@revel/core'
 
 /** The steps shown to the user while a file is being shrunk. */
 export type ProgressStep = 'prepare' | 'shrink' | 'done'
@@ -11,6 +11,8 @@ export interface CompressJob {
   options: CompressOptions
   /** Video only: the user accepted a blurry result for a video too long for the target. */
   allowBlurry?: boolean
+  /** Photo only: what to save it as. Defaults to JPEG. */
+  imageFormat?: ImageFormat
   /** Called once the real shrinking starts; everything before it counts as preparing. */
   onStep: (step: ProgressStep) => void
   /** Called with 0…1 as the current stage progresses. A new pass may start again at 0. */

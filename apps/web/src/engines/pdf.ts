@@ -16,7 +16,7 @@ import {
   PDFStream,
   type PDFObject,
 } from 'pdf-lib'
-import { createJpegRenderer } from './canvas'
+import { createImageRenderer } from './canvas'
 import type { CompressJob, CompressResult } from './types'
 
 /** Smaller images (logos, signatures) aren't worth the quality risk. */
@@ -165,7 +165,7 @@ async function recompressImages(
     if (!bitmap) continue
     try {
       const scale = Math.min(1, step.maxLongSide / Math.max(bitmap.width, bitmap.height))
-      const jpeg = new Uint8Array(await (await createJpegRenderer(bitmap)(scale, step.quality)).arrayBuffer())
+      const jpeg = new Uint8Array(await (await createImageRenderer(bitmap)(scale, step.quality)).arrayBuffer())
       if (jpeg.length >= image.original.contents.length) {
         doc.context.assign(image.ref, image.original)
         continue

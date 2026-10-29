@@ -5,12 +5,16 @@ import {
   DEFAULT_OPTIONS,
   detectCategory,
   formatBytes,
+  isJpegFile,
   MAX_MERGE_PHOTOS,
+  offersPngOutput,
   type CompressOptions,
   type FileCategory,
+  type ImageFormat,
 } from '@revel/core'
 import { useRef, useState } from 'react'
 import { DropZone } from './components/DropZone'
+import { ImageFormatPicker } from './components/ImageFormatPicker'
 import { OptionToggles } from './components/OptionToggles'
 import { ProgressPanel } from './components/ProgressPanel'
 import { SavingsReceipt } from './components/SavingsReceipt'
@@ -19,6 +23,7 @@ import { TargetPicker } from './components/TargetPicker'
 import { VideoPlanNote } from './components/VideoPlanNote'
 import { BlurryVideoError, compress, type CompressResult, type ProgressStep } from './engines'
 import { defaultTarget, targetBytes, type Target } from './lib/target'
+import { useTransparency } from './lib/useTransparency'
 import { useVideoInfo } from './lib/useVideoInfo'
 
 const CATEGORY_LABEL: Record<FileCategory, string> = {
@@ -70,9 +75,15 @@ function App() {
   const [allowBlurry, setAllowBlurry] = useState(false)
   /** The engine found the video would be blurry, which the browser couldn't tell in advance. */
   const [offerBlurry, setOfferBlurry] = useState(false)
+  /** The user's pick; until then the format follows whether the image is see-through. */
+  const [formatOverride, setFormatOverride] = useState<ImageFormat | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const videoInfo = useVideoInfo(picked?.category === 'video' ? picked.files[0] : null)
+  const photo = picked?.category === 'image' ? picked.files[0] : null
+  const pngOffered = photo ? offersPngOutput(photo.name, photo.type) : false
+  const transparent = useTransparency(pngOffered ? photo : null)
+  const imageFormat: ImageFormat = formatOverride ?? (transparent ? 'png' : 'jpeg')
   const isMerge = (picked?.files.length ?? 0) > 1
   const totalBytes = picked?.files.reduce((sum, file) => sum + file.size, 0) ?? 0
   const maxBytes = picked ? targetBytes(target, picked.category) : null
@@ -86,13 +97,16 @@ function App() {
       : null
   const canShrink =
     maxBytes !== null &&
-    (!videoPlan || (videoPlan.possible && (videoPlan.feasible || allowBlurry)))
+    (!videoPlan || (videoPlan.possible && (videoPlan.feasible || allowBlurry))) &&
+    // Wait for the transparency check, or the default format could still flip.
+    (!pngOffered || transparent !== null)
 
   function handleFiles(files: File[]) {
     const pick = pickFiles(files)
     setResult(null)
     setAllowBlurry(false)
     setOfferBlurry(false)
+    setFormatOverride(null)
     if (typeof pick === 'string') {
       setPicked(null)
       setError(pick)
@@ -118,6 +132,7 @@ function App() {
         maxBytes,
         options,
         allowBlurry: allowBlurry || forceBlurry,
+        imageFormat,
         onStep: setStep,
         onProgress: setProgress,
         onStatus: setStatus,
@@ -223,6 +238,16 @@ function App() {
             </div>
 
             <TargetPicker category={picked.category} target={target} onChange={setTarget} />
+            {pngOffered ? (
+              <ImageFormatPicker format={imageFormat} transparent={transparent} onChange={setFormatOverride} />
+            ) : (
+              photo &&
+              !isJpegFile(photo.name, photo.type) && (
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Will be saved as JPG, which works everywhere.
+                </p>
+              )
+            )}
             {isMerge ? (
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 GPS location and camera data are always removed when combining photos.

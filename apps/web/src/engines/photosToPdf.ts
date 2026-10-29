@@ -6,7 +6,7 @@ import {
   type PdfImageStep,
 } from '@revel/core'
 import { PDFDocument } from 'pdf-lib'
-import { createJpegRenderer, decodeImage } from './canvas'
+import { createImageRenderer, decodeImage } from './canvas'
 import type { CompressJob, CompressResult } from './types'
 
 /**
@@ -65,7 +65,7 @@ async function buildPdf(pages: ImageBitmap[], step: PdfImageStep, signal: AbortS
   for (const bitmap of pages) {
     signal.throwIfAborted()
     const scale = Math.min(1, step.maxLongSide / Math.max(bitmap.width, bitmap.height))
-    const jpeg = await (await createJpegRenderer(bitmap)(scale, step.quality)).arrayBuffer()
+    const jpeg = await (await createImageRenderer(bitmap)(scale, step.quality)).arrayBuffer()
     const image = await doc.embedJpg(jpeg)
     const { pageWidth, pageHeight, ...placement } = placeOnA4(bitmap.width, bitmap.height)
     doc.addPage([pageWidth, pageHeight]).drawImage(image, placement)

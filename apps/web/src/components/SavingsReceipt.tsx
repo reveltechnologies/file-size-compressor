@@ -4,6 +4,9 @@ import type { CompressResult } from '../engines'
 import { canShareFile, downloadBlob, shareBlob } from '../lib/saveFile'
 import { CARD, PRIMARY_BUTTON, SECONDARY_BUTTON } from './styles'
 
+/** Photos can come out in a different format than they went in, so say which. */
+const PHOTO_FORMAT: Record<string, string> = { 'image/jpeg': 'JPG', 'image/png': 'PNG' }
+
 interface SavingsReceiptProps {
   originalBytes: number
   maxBytes: number
@@ -38,7 +41,10 @@ export function SavingsReceipt({ originalBytes, maxBytes, result, onReset }: Sav
           ⚠ Couldn't get under {formatBytes(maxBytes)}. This is the smallest we could make it.
         </p>
       )}
-      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{fileName}</p>
+      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+        {PHOTO_FORMAT[blob.type] && `Saved as ${PHOTO_FORMAT[blob.type]} · `}
+        {fileName}
+      </p>
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
         <button type="button" onClick={() => downloadBlob(blob, fileName)} className={PRIMARY_BUTTON}>

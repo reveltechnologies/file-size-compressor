@@ -16,6 +16,18 @@ Add every change here. Pick the version type by how well the app works:
 The release workflow marks alpha, beta and rc versions as pre-releases on GitHub.
 -->
 
+## [0.4.0-beta.1] - 2026-10-29
+
+**Type:** Beta. Every feature works and has been tested in Chrome and Edge, but the app isn't public yet.
+
+### Added
+- PNG and WebP images can be saved as PNG, keeping see-through areas. Images with see-through areas are saved as PNG by default; others stay JPG, the smallest option.
+- A "Save as" choice (JPG or PNG) for PNG and WebP images, with a warning when JPG would turn see-through areas white.
+- The settings screen says when a photo will be saved as JPG (e.g. iPhone HEIC photos), and the receipt says which format was used.
+
+### Fixed
+- PNG images were always turned into JPG without telling the user, and lost their transparency.
+
 ## [0.3.0-beta.1] - 2026-10-29
 
 **Type:** Beta. Every feature works and has been tested in Chrome and Edge, but the app isn't public yet.

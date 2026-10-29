@@ -1,4 +1,7 @@
-export type JpegRenderer = (scale: number, quality: number) => Promise<Blob>
+import { outputMimeType, type ImageFormat } from '@revel/core'
+
+/** `quality` is 0…1 and only used for JPEG. */
+export type ImageRenderer = (scale: number, quality?: number) => Promise<Blob>
 
 /**
  * Uses the browser's own decoder first (Safari reads HEIC natively), then
@@ -20,11 +23,11 @@ export async function decodeImage(file: File, onStatus: (message: string) => voi
 }
 
 /**
- * Draws a decoded image onto a canvas and encodes it as JPEG. Canvas output
- * carries no EXIF, GPS, ICC profile or alpha channel: that is the "unseen
- * data" wipe for photos.
+ * Draws a decoded image onto a canvas and encodes it as JPEG or PNG. Canvas
+ * output carries no EXIF, GPS or ICC profile: that is the "unseen data" wipe
+ * for photos.
  */
-export function createJpegRenderer(bitmap: ImageBitmap): JpegRenderer {
+export function createImageRenderer(bitmap: ImageBitmap, format: ImageFormat = 'jpeg'): ImageRenderer {
   const canvas = document.createElement('canvas')
   let drawnScale = -1
 
@@ -34,9 +37,11 @@ export function createJpegRenderer(bitmap: ImageBitmap): JpegRenderer {
       canvas.height = Math.max(1, Math.round(bitmap.height * scale))
       const context = canvas.getContext('2d')
       if (!context) throw new Error('This browser blocked image processing (canvas unavailable).')
-      // JPEG has no transparency: paint white so see-through areas don't turn black.
-      context.fillStyle = '#fff'
-      context.fillRect(0, 0, canvas.width, canvas.height)
+      if (format === 'jpeg') {
+        // JPEG has no transparency: paint white so see-through areas don't turn black.
+        context.fillStyle = '#fff'
+        context.fillRect(0, 0, canvas.width, canvas.height)
+      }
       context.imageSmoothingQuality = 'high'
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
       drawnScale = scale
@@ -45,7 +50,7 @@ export function createJpegRenderer(bitmap: ImageBitmap): JpegRenderer {
     return new Promise((resolve, reject) =>
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the image.'))),
-        'image/jpeg',
+        outputMimeType('image', format),
         quality,
       ),
     )

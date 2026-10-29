@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectCategory, outputFileName } from './files'
+import { detectCategory, isJpegFile, offersPngOutput, outputFileName, outputMimeType } from './files'
 
 describe('detectCategory', () => {
   it('detects by extension, ignoring case', () => {
@@ -32,5 +32,32 @@ describe('outputFileName', () => {
   it('handles names without an extension', () => {
     expect(outputFileName('shared', 'video')).toBe('shared-fit.mp4')
     expect(outputFileName('', 'pdf')).toBe('file-fit.pdf')
+  })
+
+  it('saves photos as PNG when asked', () => {
+    expect(outputFileName('logo.png', 'image', 'png')).toBe('logo-fit.png')
+    expect(outputMimeType('image', 'png')).toBe('image/png')
+    expect(outputMimeType('image')).toBe('image/jpeg')
+    // The image format only applies to photos.
+    expect(outputFileName('scan.pdf', 'pdf', 'png')).toBe('scan-fit.pdf')
+  })
+})
+
+describe('offersPngOutput', () => {
+  it('offers PNG only for sources that can be see-through', () => {
+    expect(offersPngOutput('logo.PNG')).toBe(true)
+    expect(offersPngOutput('sticker.webp')).toBe(true)
+    expect(offersPngOutput('', 'image/png')).toBe(true)
+    expect(offersPngOutput('IMG_1234.HEIC')).toBe(false)
+    expect(offersPngOutput('photo.jpg')).toBe(false)
+  })
+})
+
+describe('isJpegFile', () => {
+  it('recognises both JPEG extensions and the MIME type', () => {
+    expect(isJpegFile('photo.JPG')).toBe(true)
+    expect(isJpegFile('photo.jpeg')).toBe(true)
+    expect(isJpegFile('', 'image/jpeg')).toBe(true)
+    expect(isJpegFile('photo.heic')).toBe(false)
   })
 })

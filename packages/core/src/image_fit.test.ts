@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   fitImageToSize,
+  fitLosslessImageToSize,
   imageScaleRange,
   MAX_JPEG_QUALITY,
   MIN_JPEG_QUALITY,
@@ -55,6 +56,41 @@ describe('fitImageToSize', () => {
 
     expect(await fitImageToSize(encode, 1 * KB, { initialScale: 1, minScale: 0.1 })).toBeNull()
     expect(Math.min(...attempts.map((a) => a.scale))).toBe(0.1)
+  })
+})
+
+describe('fitLosslessImageToSize', () => {
+  /** Fake PNG encoder: bytes grow with pixel count only. */
+  function fakeLosslessEncoder(fullSizeBytes: number) {
+    const scales: number[] = []
+    const encode = async (scale: number) => {
+      scales.push(scale)
+      return { output: scale, bytes: Math.round(fullSizeBytes * scale ** 2) }
+    }
+    return { encode, scales }
+  }
+
+  it('keeps full size when the image already fits', async () => {
+    const { encode, scales } = fakeLosslessEncoder(300 * KB)
+
+    expect(await fitLosslessImageToSize(encode, 500 * KB)).toMatchObject({ scale: 1, bytes: 300 * KB })
+    expect(scales).toEqual([1])
+  })
+
+  it('shrinks dimensions until it fits', async () => {
+    const { encode } = fakeLosslessEncoder(4 * MB)
+
+    const fitted = await fitLosslessImageToSize(encode, 500 * KB)
+
+    expect(fitted?.scale).toBeLessThan(1)
+    expect(fitted?.bytes).toBeLessThanOrEqual(500 * KB)
+  })
+
+  it('gives up with null rather than going below the minimum size', async () => {
+    const { encode, scales } = fakeLosslessEncoder(10 * MB)
+
+    expect(await fitLosslessImageToSize(encode, 1 * KB, { initialScale: 1, minScale: 0.1 })).toBeNull()
+    expect(Math.min(...scales)).toBe(0.1)
   })
 })
 

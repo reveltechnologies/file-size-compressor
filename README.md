@@ -15,7 +15,7 @@ Made by [Revel Technologies](https://github.com/reveltechnologies).
 | File type | Accepted formats | Output | Presets |
 |---|---|---|---|
 | Video | MP4, MOV, WebM, MKV, GIF | MP4 | Discord Free 10 MB · WhatsApp 16 MB · Email / Gmail 25 MB |
-| Photo | JPG, PNG, WebP, HEIC / HEIF (iPhone) | JPG | Strict Portal ID 500 KB · Standard Form 1 MB |
+| Photo | JPG, PNG, WebP, HEIC / HEIF (iPhone) | JPG, or PNG to keep see-through areas | Strict Portal ID 500 KB · Standard Form 1 MB |
 | PDF | PDF | PDF | Visa / Uni Portal 2 MB · Standard Doc 5 MB · Email Packet 10 MB |
 
 **Several photos at once** are combined into one A4 PDF that fits the chosen size.

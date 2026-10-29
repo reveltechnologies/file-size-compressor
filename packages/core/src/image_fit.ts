@@ -6,6 +6,8 @@ export const MIN_JPEG_QUALITY = 0.5
 export const MAX_JPEG_QUALITY = 0.92
 const QUALITY_SEARCH_STEPS = 5
 const MAX_SCALE_ROUNDS = 6
+/** Lossless encodes are cheaper to retry than a full quality search, so allow more rounds. */
+const MAX_LOSSLESS_SCALE_ROUNDS = 8
 
 export interface ImageEncodeAttempt {
   /** Multiplier on the source width and height. */
@@ -71,10 +73,34 @@ export async function fitImageToSize<T>(
     }
 
     if (scale <= minScale) return null
-    // JPEG size grows roughly with pixel count, i.e. with scale².
-    scale = Math.max(minScale, scale * Math.min(0.9, Math.sqrt(maxBytes / worst.bytes) * 0.95))
+    scale = nextScale(scale, minScale, maxBytes, worst.bytes)
   }
   return null
+}
+
+/**
+ * Like fitImageToSize, for lossless formats (PNG) that have no quality
+ * setting: only the dimensions can shrink. Returns null if nothing fits.
+ */
+export async function fitLosslessImageToSize<T>(
+  encode: (scale: number) => Promise<Encoded<T>>,
+  maxBytes: number,
+  { initialScale, minScale }: ScaleRange = { initialScale: 1, minScale: 0 },
+): Promise<(Encoded<T> & { scale: number }) | null> {
+  let scale = initialScale
+
+  for (let round = 0; round < MAX_LOSSLESS_SCALE_ROUNDS; round++) {
+    const attempt = await encode(scale)
+    if (attempt.bytes <= maxBytes) return { ...attempt, scale }
+    if (scale <= minScale) return null
+    scale = nextScale(scale, minScale, maxBytes, attempt.bytes)
+  }
+  return null
+}
+
+/** Image size grows roughly with pixel count, i.e. with scale². */
+function nextScale(scale: number, minScale: number, maxBytes: number, bytes: number): number {
+  return Math.max(minScale, scale * Math.min(0.9, Math.sqrt(maxBytes / bytes) * 0.95))
 }
 
 export interface PdfImageStep {
