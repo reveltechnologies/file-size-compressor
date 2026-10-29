@@ -7,21 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--- To add private notes or comments in this changelog that won't show in the rendered release, use markdown comments like this. -->
 
-## [1.0.0] - 2026-10-29
+<!--
+Add every change here. Pick the version type by how well the app works:
+  -alpha.X  early build, features still missing or rough
+  -beta.X   every feature works and is tested, not public yet
+  -rc.X     release candidate, only bug fixes before the release
+  (none)    release, public and stable
+The release workflow marks alpha, beta and rc versions as pre-releases on GitHub.
+-->
 
-First release of the web app.
+## [0.3.0-beta.1] - 2026-10-29
+
+**Type:** Beta. Every feature works and has been tested in Chrome and Edge, but the app isn't public yet.
 
 ### Added
-- Shrink a video, photo or PDF to fit an upload limit, entirely in the browser; files never leave the device.
+- A warning before shrinking a video that would look very blurry, with an option to shrink it anyway.
+- A clear warning on the receipt when a file can't get under the limit, showing the smallest size reached.
+- A README describing what the app does and how to run it.
+
+### Changed
+- Friendlier progress screen with steps (Preparing, Shrinking, Done) and a bar that never goes backwards.
+- Combined photo order is shown as a numbered list, which reads better on small screens.
+- Turned off the wiki sync in `config.yaml`; the project doesn't use a wiki.
+
+### Security
+- Fixed a slow regular expression (polynomial ReDoS) when reading video details.
+
+## [0.2.0-alpha.1] - 2026-10-27
+
+**Type:** Alpha. Early build for testing, not public.
+
+### Added
+- Combine several photos into one A4 PDF that fits the chosen size.
+
+## [0.1.0-alpha.1] - 2026-10-26
+
+**Type:** Alpha. First working build, not public.
+
+### Added
+- Web app built with Vite, React, TypeScript and Tailwind.
+- Shared `@revel/core` package with size presets, bitrate maths, ffmpeg arguments, JPEG metadata, photo fitting and PDF layout, with unit tests.
 - Size presets: Discord Free, WhatsApp and Email / Gmail for video; Strict Portal ID and Standard Form for photos; Visa / Uni Portal, Standard Doc and Email Packet for PDFs; plus a custom limit.
 - Video shrinking with ffmpeg.wasm (MP4, MOV, WebM, MKV, GIF → MP4), with automatic retries when a result comes out slightly too big.
-- Smart optimize for video: HDR → SDR, 60 → 30 FPS, and a lower resolution when the limit is tight.
-- Mute audio option, so the whole size budget goes to the picture.
-- A warning before shrinking a video that would look very blurry, with an option to shrink it anyway.
+- Smart optimize for video (HDR → SDR, 60 → 30 FPS, lower resolution when the limit is tight) and a Mute audio option.
 - Photo shrinking (JPG, PNG, WebP, HEIC / HEIF) that finds the best quality and size that fits.
-- PDF shrinking: removes edit history and unused data, then re-compresses large photos and scans.
-- Combine several photos into one A4 PDF that fits the chosen size.
+- PDF shrinking that removes edit history and unused data, then re-compresses large photos and scans.
 - Remove hidden data: GPS location, camera serial numbers, author tags and PDF metadata.
-- Savings receipt showing the before and after size, and a clear warning when a file can't get under the limit.
-- Progress screen with steps (Preparing, Shrinking, Done) and a bar that never goes backwards.
-- Shared `@revel/core` package (presets, bitrate maths, ffmpeg arguments, JPEG metadata, photo fitting, PDF layout) with unit tests, ready for the upcoming Android app.
+- Savings receipt showing the before and after size, plus download and share.
+- Everything runs in the browser; files never leave the device.
