@@ -13,7 +13,7 @@ security_policy: # Keep SECURITY.md in sync with latest major version
   target: SECURITY.md
 
 wiki_sync: # Sync docs/ to GitHub Wiki (create a Home page under Wiki tab first)
-  enabled: true
+  enabled: false
   source_directory: docs/
 
 documentation_sync: # Sync docs, workflows, and metadata across branches

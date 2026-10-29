@@ -73,7 +73,7 @@ apps/web/          React web app (Vite, Tailwind)
 packages/core/     Plain TypeScript shared with the upcoming Android app:
                    size presets, bitrate maths, ffmpeg arguments, JPEG metadata,
                    photo fitting, PDF page layout (with unit tests)
-docs/              Pages mirrored to the GitHub Wiki
+docs/              User guide: how to use the app and common questions
 ```
 
 ### Built with
@@ -93,12 +93,13 @@ When you push to GitHub, the workflows in `.github/workflows/` (switched on or o
 - Run **CodeQL** security analysis.
 - Create or update a **GitHub Release** for each version in [`CHANGELOG.md`](CHANGELOG.md).
 - Keep the supported-versions table in [`SECURITY.md`](SECURITY.md) up to date.
-- Mirror [`docs/`](docs/) to the **GitHub Wiki**.
 - Sync documentation and workflows to other active branches.
 
 ---
 
 ## Contributing
+
+Add every change to [CHANGELOG.md](CHANGELOG.md) under a version number, and pick the version type (alpha, beta, rc or release) by how well the app works. The guide is at the top of that file.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md).
 
